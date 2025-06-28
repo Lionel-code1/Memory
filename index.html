@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8" />
+<title>Memory-Spiel für mehrere Spieler 🎴</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&display=swap');
+
+  * {
+    box-sizing: border-box;
+  }
+
+  body {
+    font-family: 'Montserrat', sans-serif;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: #f0f0f0;
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 30px 20px;
+  }
+
+  h1 {
+    font-weight: 700;
+    font-size: 2.8rem;
+    margin-bottom: 15px;
+    text-shadow: 0 2px 5px rgba(0,0,0,0.3);
+  }
+
+  #setup {
+    background: rgba(255, 255, 255, 0.15);
+    padding: 20px 30px;
+    border-radius: 20px;
+    box-shadow: 0 8px 15px rgba(0,0,0,0.2);
+    margin-bottom: 30px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+  }
+
+  #setup label {
+    font-weight: 600;
+    font-size: 1.2rem;
+  }
+
+  select {
+    font-size: 1.1rem;
+    padding: 6px 12px;
+    border-radius: 12px;
+    border: none;
+    outline: none;
+    cursor: pointer;
+    transition: background 0.3s ease;
+  }
+
+  select:hover, select:focus {
+    background: rgba(255,255,255,0.3);
+  }
+
+  button {
+    background: #f39c12;
+    border: none;
+    border-radius: 15px;
+    color: #fff;
+    font-weight: 700;
+    font-size: 1.1rem;
+    padding: 10px 25px;
+    cursor: pointer;
+    box-shadow: 0 4px 10px rgba(243,156,18,0.6);
+    transition: background 0.3s ease, transform 0.2s ease;
+  }
+
+  button:hover {
+    background: #d87e0a;
+    transform: scale(1.05);
+  }
+
+  #game {
+    display: grid;
+    gap: 18px;
+    max-width: 600px;
+    width: 100%;
+    justify-content: center;
+    margin-bottom: 25px;
+  }
+
+  .card {
+    background: #4c5c68;
+    border-radius: 15px;
+    width: 90px;
+    height: 90px;
+    cursor: pointer;
+    perspective: 900px;
+    box-shadow: 0 6px 10px rgba(0,0,0,0.25);
+    position: relative;
+    user-select: none;
+  }
+
+  .card.flipped {
+    cursor: default;
+  }
+
+  .card-inner {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    border-radius: 15px;
+    transition: transform 0.6s;
+    transform-style: preserve-3d;
+  }
+
+  .card.flipped .card-inner {
+    transform: rotateY(180deg);
+  }
+
+  .card-front, .card-back {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    border-radius: 15px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 50px;
+    backface-visibility: hidden;
+    box-shadow: inset 0 0 10px rgba(0,0,0,0.15);
+  }
+
+  .card-front {
+    background: #f1c40f;
+    color: #2c3e50;
+    font-weight: 700;
+    transform: rotateY(180deg);
+    user-select: none;
+  }
+
+  .card-back {
+    background: #34495e;
+    color: #ecf0f1;
+    font-weight: 600;
+    user-select: none;
+  }
+
+  .card.matched {
+    box-shadow: 0 0 20px 4px #27ae60;
+    cursor: default;
+  }
+
+  #status {
+    font-size: 1.3rem;
+    font-weight: 600;
+    text-align: center;
+    margin-bottom: 10px;
+    min-height: 2.2em;
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+  }
+
+  #scoreboard {
+    background: rgba(255, 255, 255, 0.12);
+    padding: 18px 25px;
+    border-radius: 18px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.15);
+    font-size: 1.2rem;
+    font-weight: 600;
+    max-width: 300px;
+    width: 90vw;
+    text-align: center;
+    line-height: 1.5;
+  }
+
+  /* Responsive grid columns */
+  @media (min-width: 400px) {
+    #game {
+      grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
+    }
+  }
+  @media (min-width: 700px) {
+    #game {
+      max-width: 700px;
+    }
+  }
+</style>
+</head>
+<body>
+
+<h1>Memory-Spiel für mehrere Spieler 🎴</h1>
+
+<div id="setup">
+  <label for="playerCount">Wie viele Spieler? (1–4):</label>
+  <select id="playerCount">
+    <option value="1">1 Spieler</option>
+    <option value="2">2 Spieler</option>
+    <option value="3">3 Spieler</option>
+    <option value="4">4 Spieler</option>
+  </select>
+  <button onclick="startGame()">Spiel starten</button>
+</div>
+
+<div id="status"></div>
+<div id="scoreboard"></div>
+<div id="game"></div>
+
+<script>
+  const emojis = ["🐶","🐱","🦊","🐻","🐼","🐨","🐸","🐵","🐔","🐧","🐢","🦄","🐝","🦋","🐞","🐬"];
+
+  let cards = [];
+  let flippedCards = [];
+  let matchedPairs = 0;
+  let busy = false;
+  let currentPlayer = 0;
+  let playerCount = 1;
+  let scores = [];
+
+  const gameContainer = document.getElementById("game");
+  const status = document.getElementById("status");
+  const scoreboard = document.getElementById("scoreboard");
+  const playerCountSelect = document.getElementById("playerCount");
+
+  function shuffle(array) {
+    for(let i = array.length -1; i>0; i--){
+      const j = Math.floor(Math.random() * (i+1));
+      [array[i], array[j]] = [array[j], array[i]];
+    }
+  }
+
+  function createCard(emoji, index){
+    const card = document.createElement("div");
+    card.classList.add("card");
+    card.dataset.emoji = emoji;
+    card.dataset.index = index;
+
+    const inner = document.createElement("div");
+    inner.classList.add("card-inner");
+
+    const front = document.createElement("div");
+    front.classList.add("card-front");
+    front.textContent = emoji;
+
+    const back = document.createElement("div");
+    back.classList.add("card-back");
+    back.textContent = "?";
+
+    inner.appendChild(front);
+    inner.appendChild(back);
+    card.appendChild(inner);
+
+    card.addEventListener("click", () => {
+      if (busy) return;
+      if (flippedCards.includes(card) || card.classList.contains("matched")) return;
+      flipCard(card);
+    });
+
+    return card;
+  }
+
+  function flipCard(card) {
+    card.classList.add("flipped");
+    flippedCards.push(card);
+
+    if (flippedCards.length === 2) {
+      busy = true;
+      setTimeout(checkForMatch, 1200);
+    }
+  }
+
+  function checkForMatch() {
+    const [card1, card2] = flippedCards;
+
+    if (card1.dataset.emoji === card2.dataset.emoji) {
+      card1.classList.add("matched");
+      card2.classList.add("matched");
+      matchedPairs++;
+      scores[currentPlayer]++;
+      status.textContent = `Spieler ${currentPlayer + 1} hat ein Paar gefunden! 🎉`;
+
+      updateScoreboard();
+
+      if (matchedPairs === (playerCount * 4)) {
+        setTimeout(() => {
+          const maxScore = Math.max(...scores);
+          const winners = scores
+            .map((s, i) => s === maxScore ? i+1 : null)
+            .filter(x => x !== null);
+
+          if (winners.length === 1) {
+            status.textContent = `🏆 Spieler ${winners[0]} gewinnt mit ${maxScore} Paaren!`;
+          } else {
+            status.textContent = `🤝 Unentschieden zwischen Spielern ${winners.join(", ")} mit ${maxScore} Paaren!`;
+          }
+        }, 600);
+        busy = true;
+      } else {
+        flippedCards = [];
+        busy = false;
+      }
+    } else {
+      status.textContent = `Spieler ${currentPlayer + 1} hat kein Paar gefunden.`;
+      setTimeout(() => {
+        card1.classList.remove("flipped");
+        card2.classList.remove("flipped");
+        flippedCards = [];
+        busy = false;
+        nextPlayer();
+      }, 1200);
+    }
+  }
+
+  function nextPlayer() {
+    currentPlayer = (currentPlayer + 1) % playerCount;
+    status.textContent += ` Jetzt ist Spieler ${currentPlayer + 1} dran.`;
+    updateScoreboard();
+  }
+
+  function updateScoreboard() {
+    let html = `<strong>Aktueller Spieler: Spieler ${currentPlayer + 1}</strong><br><br>`;
+    for(let i=0; i<playerCount; i++){
+      html += `Spieler ${i+1}: <span style="color:#f1c40f;">${scores[i]}</span> Paare<br>`;
+    }
+    scoreboard.innerHTML = html;
+  }
+
+  function startGame() {
+  playerCount = parseInt(playerCountSelect.value);
+  scores = Array(playerCount).fill(0);
+  flippedCards = [];
+  matchedPairs = 0;
+  busy = false;
+  currentPlayer = 0;
+  status.textContent = "";
+  scoreboard.textContent = "";
+  gameContainer.innerHTML = "";
+
+  const totalPairs = Math.min(playerCount * 4, emojis.length);
+  const cardsArray = [...emojis.slice(0, totalPairs), ...emojis.slice(0, totalPairs)];
+  shuffle(cardsArray);
+
+  // 🧠 Dynamisch die Grid-Spalten berechnen (max 8 pro Zeile)
+  const columns = Math.min(8, Math.ceil(Math.sqrt(cardsArray.length)));
+  gameContainer.style.gridTemplateColumns = `repeat(${columns}, 1fr)`;
+
+  cardsArray.forEach((emoji, index) => {
+    const card = createCard(emoji, index);
+    gameContainer.appendChild(card);
+  });
+
+  updateScoreboard();
+  status.textContent = `Spieler 1 beginnt! Viel Spaß!`;
+}
+
+</script>
+
+</body>
+</html>
